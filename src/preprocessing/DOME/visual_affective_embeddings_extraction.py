@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
+from tqdm import tqdm
 
 from feature_extraction.pytorch_based.embeddings_extraction_torch import EmbeddingsExtractor
 from pytorch_utils.models.CNN_models import Modified_EfficientNet_B1
@@ -21,6 +22,11 @@ def prepare_embeddings_extractor():
     backbone_model.load_state_dict(torch.load(weights_path))
     # cut off last two layers responsible for classification and regression
     backbone_model = torch.nn.Sequential(*list(backbone_model.children())[:-2])
+    # freeze model
+    for param in backbone_model.parameters():
+        param.requires_grad = False
+    backbone_model.eval()
+    # create embeddings extractor class
     extractor = EmbeddingsExtractor(model=backbone_model, device=None,
                                     preprocessing_functions=preprocessing_functions, output_shape=256)
     return extractor
@@ -45,11 +51,11 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
     # read metafile
     metafile = pd.read_csv(path_to_metafile)
     # create result_file dataframe
-    result_file = pd.DataFrame(columns=['video_name', 'frame_number', 'timestep', 'filename', 'found_face'] + [f'embedding_{i}' for i in range(256)])
+    result_file = pd.DataFrame(columns=['video_name', 'frame_number', 'timestep', 'filename', 'found_face'] + [f'aff_embedding_{i}' for i in range(256)])
     # load embeddings extractor
     extractor = prepare_embeddings_extractor()
     # go over rows in the metafile and extract embeddings for every row (except for non-recognized faces)
-    for idx, row in metafile.iterrows():
+    for idx, row in tqdm(metafile.iterrows(), total=len(metafile)):
         # generate participant id and full path to the frame to read it
         paricipant_id = row['video_name'].split('_')[0] + '_' + row['video_name'].split('_')[1]
         filename_full_path = os.path.join(path_to_data, paricipant_id, row['filename'])
