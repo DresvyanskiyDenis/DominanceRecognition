@@ -81,7 +81,7 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
 def main():
     path_to_data = "/work/home/dsu/Datasets/DOME/extracted_faces/"
     path_to_metafile = "/work/home/dsu/Datasets/DOME/extracted_faces/metadata_all.csv"
-    output_path = "/work/home/dsu/Datasets/DOME/extracted_features/EmoEfficientNet_embeddings_all.csv"
+    output_path = "/work/home/dsu/Datasets/DOME/extracted_features/Engagement_embeddings_all.csv"
     extract_affective_embeddings_all_videos(path_to_data, path_to_metafile, output_path)
 
 if __name__ == '__main__':
