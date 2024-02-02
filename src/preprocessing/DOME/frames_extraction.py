@@ -31,7 +31,7 @@ def extract_reference_facial_frames_every_participant(path_to_data:str, output_p
     # every video has 4 participants, so we have 4 reference frames for every video
     needed_timesteps = {
         'IS1000a_1': 13694, 'IS1000a_2': 20212, 'IS1000a_3': 2703, 'IS1000a_4': 20193,
-        'IS1001a_1': 900*25, 'IS1001a_2': 900*25, 'IS1001a_3': 21337, 'IS1001a_4': 900*25,
+        'IS1001a_1': 300*25, 'IS1001a_2': 150*25, 'IS1001a_3': 21337, 'IS1001a_4': 150*25,
         'IS1001b_1': 900*25, 'IS1001b_2': 900*25, 'IS1001b_3': 1312, 'IS1001b_4': 900*25,
         'IS1001c_1': 32366, 'IS1001c_2': 900*25, 'IS1001c_3': 900*25, 'IS1001c_4': 900*25,
         'IS1003b_1': 15094, 'IS1003b_2': 18996, 'IS1003b_3': 29383, 'IS1003b_4': 900*25,
