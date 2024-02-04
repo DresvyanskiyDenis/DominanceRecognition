@@ -110,7 +110,7 @@ def extract_faces_closeup_video(path_to_video:str, output_path:str, final_fps:in
     if not os.path.exists(output_path):
         os.makedirs(output_path, exist_ok=True)
     # create metadata of the extracted frames
-    metadata = pd.DataFrame(columns=['video_name', 'frame_number', 'timestep', 'filename', 'found_face'])
+    metadata = pd.DataFrame(columns=['video_name', 'participant_id', 'frame_number', 'timestep', 'filename', 'found_face'])
     participant_id = path_to_video.split(os.sep)[-1].split('.')[-2][-1]
     session_name = path_to_video.split(os.sep)[-1].split('.')[0]
     # load video file
@@ -155,7 +155,8 @@ def extract_faces_closeup_video(path_to_video:str, output_path:str, final_fps:in
                         Image.fromarray(face).save(os.path.join(output_path, save_filename))
                         found_face = True
                     # add metadata (append does not exist anymore)
-                    row = {'video_name': session_name, 'frame_number': counter, 'timestep': timestamp,
+                    row = {'video_name': session_name, 'participant_id': session_name+'_'+participant_id,
+                           'frame_number': counter, 'timestep': timestamp,
                               'filename': save_filename, 'found_face': found_face}
                     metadata = pd.concat([metadata, pd.DataFrame(row, index=[0])], ignore_index=True)
                 counter += 1
