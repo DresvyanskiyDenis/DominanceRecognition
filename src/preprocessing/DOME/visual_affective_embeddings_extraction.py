@@ -51,13 +51,14 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
     # read metafile
     metafile = pd.read_csv(path_to_metafile)
     # create result_file dataframe
-    result_file = pd.DataFrame(columns=['video_name', 'frame_number', 'timestep', 'filename', 'found_face'] + [f'aff_embedding_{i}' for i in range(256)])
+    result_file = pd.DataFrame(columns=['video_name', 'participant_id', 'frame_number', 'timestep',
+                                        'filename', 'found_face'] + [f'aff_embedding_{i}' for i in range(256)])
     # load embeddings extractor
     extractor = prepare_embeddings_extractor()
     # go over rows in the metafile and extract embeddings for every row (except for non-recognized faces)
     for idx, row in tqdm(metafile.iterrows(), total=len(metafile)):
         # generate participant id and full path to the frame to read it
-        paricipant_id = row['video_name'].split('_')[0] + '_' + row['video_name'].split('_')[1]
+        paricipant_id = row['participant_id']
         filename_full_path = os.path.join(path_to_data, paricipant_id, row['filename'])
         # load image
         img = np.array(Image.open(filename_full_path))
@@ -65,7 +66,8 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
         features = extractor.extract_embeddings(img)
         features = features.squeeze()
         # add row to the result dataframe
-        new_row = {'video_name': row['video_name'], 'frame_number': row['frame_number'], 'timestep': row['timestep'],
+        new_row = {'video_name': row['video_name'], 'participant_id': row['participant_id'],
+                   'frame_number': row['frame_number'], 'timestep': row['timestep'],
                       'filename': row['filename'], 'found_face': row['found_face'],
                       **{f'embedding_{i}': features[i] for i in range(256)}}
         result_file = pd.concat([result_file, pd.DataFrame(new_row, index=[0])], ignore_index=True)

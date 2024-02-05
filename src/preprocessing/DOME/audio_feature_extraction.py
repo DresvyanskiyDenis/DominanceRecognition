@@ -1,5 +1,8 @@
 import glob
 import os
+import sys
+sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
+sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
 
 import numpy as np
 import pandas as pd
@@ -49,7 +52,7 @@ def extract_embeddings_audio_file(extractor:AudioEmbeddingsExtractor, audio_file
     for idx, features_chunk in enumerate(features):
         # we add 1 to the participant_id because the id of participants starts from 0 instead of 1 as for videos
         participant_id = audio_file.split('/')[-3] + '_' + str(int(audio_file.split('/')[-1].split('.')[-2][-1])+1)
-        new_row = pd.DataFrame.from_dict({'filename': [audio_file],
+        new_row = pd.DataFrame.from_dict({'filename': [os.path.basename(audio_file)],
                                           'participant_id': [participant_id],
                                           'start_timestep': [idx*chunk_size],
                                           'end_timestep': [(idx+1)*chunk_size],

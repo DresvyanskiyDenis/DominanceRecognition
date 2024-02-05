@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteMappingsManager">
+    <list>
+      <list>
+        <remote-mappings server-id="python@sftp://dsu@134.60.124.24:22/work/home/dsu/anaconda3/envs/emo_rec_env/bin/python3">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$/../datatools" remote-root="/work/home/dsu/PhD/scripts/datatools" />
+              <mapping local-root="$PROJECT_DIR$" remote-root="/work/home/dsu/PhD/scripts/DominanceRecognition" />
+            </list>
+          </settings>
+        </remote-mappings>
+        <remote-mappings server-id="python@sftp://dsu@134.60.124.24:22/work/home/dsu/anaconda3/envs/tf2_env/bin/python3">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$/../datatools" remote-root="/work/home/dsu/PhD/scripts/datatools" />
+              <mapping local-root="$PROJECT_DIR$" remote-root="/work/home/dsu/PhD/scripts/DominanceRecognition" />
+            </list>
+          </settings>
+        </remote-mappings>
+      </list>
+    </list>
+  </component>
+</project>
