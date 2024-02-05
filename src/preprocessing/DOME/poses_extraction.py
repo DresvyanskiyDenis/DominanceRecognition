@@ -65,24 +65,24 @@ def extract_poses_all_videos(path_to_data:str, output_path:str, final_fps:int)->
         'IS1008d.R': {'L':'IS1008d_4', 'R':'IS1008d_2'},
     }
     # generate metadata
-    metadata = pd.DataFrame(columns=['filename', 'participant_id', 'frame', 'timestep', 'found_pose'])
+    metadata = pd.DataFrame(columns=['video_name', 'filename', 'participant_id', 'frame_number', 'timestep', 'found_pose'])
     # load the pose detector
     pose_detector = SimpleHRNet(c=48, nof_joints=17, multiperson=True,
                                 yolo_version='v3',
-                                yolo_model_def=os.path.join("/work/home/dsu/simple-HRNet-master/",
+                                yolo_model_def=os.path.join("/work/home/dsu/PhD/scripts/simple-HRNet-master/",
                                                             "models_/detectors/yolo/config/yolov3.cfg"),
-                                yolo_class_path=os.path.join("/work/home/dsu/simple-HRNet-master/",
+                                yolo_class_path=os.path.join("/work/home/dsu/PhD/scripts/simple-HRNet-master/",
                                                              "models_/detectors/yolo/data/coco.names"),
-                                yolo_weights_path=os.path.join("/work/home/dsu/simple-HRNet-master/",
+                                yolo_weights_path=os.path.join("/work/home/dsu/PhD/scripts/simple-HRNet-master/",
                                                                "models_/detectors/yolo/weights/yolov3.weights"),
-                                checkpoint_path="/work/home/dsu/simple-HRNet-master/pose_hrnet_w48_384x288.pth",
+                                checkpoint_path="/work/home/dsu/PhD/scripts/simple-HRNet-master/pose_hrnet_w48_384x288.pth",
                                 return_heatmaps=False, return_bounding_boxes=True, max_batch_size=1,
                                 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
     # generate video paths
     video_filenames = glob.glob(os.path.join(path_to_data, "**", "video", "*L.*")) + glob.glob(os.path.join(path_to_data, "**", "video", "*R.*"))
     # go through all videos
     for video_filename in tqdm(video_filenames, desc="Processing videos..."):
-        video_name = os.path.join(*os.path.basename(video_filename).split('.')[:-1])
+        video_name = '.'.join(os.path.basename(video_filename).split('.')[:-1])
         left_participant_id = allocation[video_name]['L']
         right_participant_id = allocation[video_name]['R']
         metadata_l, metadata_r = extract_poses_single_video(video_filename, pose_detector, output_path, final_fps,
@@ -111,7 +111,7 @@ def extract_pose_from_frame(frame:np.ndarray, detector:torch.nn.Module, row:Dict
 def extract_poses_single_video(path_to_video:str, pose_detector:torch.nn.Module, output_path:str,
                                final_fps:int, left_participant_id:str, right_participant_id:str)->Tuple[pd.DataFrame, pd.DataFrame]:
     """ Extracts the poses from the video and saves them to the output_path. Returns the metafile with all information about extracted poses.
-    The video contains two persons sitting next to each other (left and right). Tehir positions are approximately half-half in the
+    The video contains two persons sitting next to each other (left and right). Their positions are approximately half-half in the
     width of the video. The function extracts the poses of both persons and saves them to the output_path.
 
     :param path_to_video: str
@@ -132,10 +132,13 @@ def extract_poses_single_video(path_to_video:str, pose_detector:torch.nn.Module,
     # create a folder to save the extracted poses
     if not os.path.exists(output_path):
         os.makedirs(output_path)
+    if not os.path.exists(os.path.join(output_path, left_participant_id)):
+        os.makedirs(os.path.join(output_path, left_participant_id))
+    if not os.path.exists(os.path.join(output_path, right_participant_id)):
+        os.makedirs(os.path.join(output_path, right_participant_id))
     # create metafile to save the information about the extracted poses
-    metadata_l = pd.DataFrame(columns=['filename', 'participant_id', 'frame', 'timestep', 'found_pose'])
-    metadata_r = pd.DataFrame(columns=['filename', 'participant_id', 'frame', 'timestep', 'found_pose'])
-    participant_id = path_to_video.split(os.path.sep)[-1].split('.')[0] + '_' + path_to_video.split(os.path.sep)[-1].split('.')[-2][-1]
+    metadata_l = pd.DataFrame(columns=['video_name', 'filename', 'participant_id', 'frame_number', 'timestep', 'found_pose'])
+    metadata_r = pd.DataFrame(columns=['video_name', 'filename', 'participant_id', 'frame_number', 'timestep', 'found_pose'])
     # load video file
     video = cv2.VideoCapture(path_to_video)
     # get FPS
@@ -161,10 +164,15 @@ def extract_poses_single_video(path_to_video:str, pose_detector:torch.nn.Module,
                     # divide the frame into two parts
                     left_frame = frame[:, :frame.shape[1]//2]
                     right_frame = frame[:, frame.shape[1]//2:]
-                    # extract poses
-                    l_row = {'filename': path_to_video.split(os.sep)[-1], 'participant_id': left_participant_id, 'frame': counter, 'timestep': timestamp}
-                    r_row = {'filename': path_to_video.split(os.sep)[-1], 'participant_id': right_participant_id, 'frame': counter, 'timestep': timestamp}
-                    # left
+                    # pre-form rows for metadata
+                    l_row = { 'video_name': os.path.basename(path_to_video),
+                        'filename': f"{left_participant_id}_{timestamp}.png",
+                        'participant_id': left_participant_id, 'frame_number': counter, 'timestep': timestamp}
+
+                    r_row = {'video_name': os.path.basename(path_to_video),
+                        'filename': f"{right_participant_id}_{timestamp}.png",
+                        'participant_id': right_participant_id, 'frame_number': counter, 'timestep': timestamp}
+                    # extraction of poses
                     left_pose_frame, l_row = extract_pose_from_frame(left_frame, pose_detector, l_row)
                     right_pose_frame, r_row = extract_pose_from_frame(right_frame, pose_detector, r_row)
                     # save the extracted poses
