@@ -1,11 +1,15 @@
 import os
 from functools import partial
+import sys
+sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
+sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
 
 import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
 from tqdm import tqdm
+from torchvision.io import read_image
 
 from feature_extraction.pytorch_based.embeddings_extraction_torch import EmbeddingsExtractor
 from pytorch_utils.models.CNN_models import Modified_EfficientNet_B1
@@ -51,26 +55,39 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
     # read metafile
     metafile = pd.read_csv(path_to_metafile)
     # create result_file dataframe
-    result_file = pd.DataFrame(columns=['video_name', 'participant_id', 'frame_number', 'timestep',
-                                        'filename', 'found_face'] + [f'eng_embedding_{i}' for i in range(256)])
+    columns = ['video_name', 'participant_id', 'frame_number', 'timestep', 'filename', 'found_face'] + \
+              [f'eng_embedding_{i}' for i in range(256)]
+    result_file = pd.DataFrame(columns=columns)
+    # create file by writing to csv
+    result_file.to_csv(output_path, index=False)
     # load embeddings extractor
     extractor = prepare_embeddings_extractor()
     # go over rows in the metafile and extract embeddings for every row (except for non-recognized faces)
     for idx, row in tqdm(metafile.iterrows(), total=len(metafile)):
-        # generate participant id and full path to the frame to read it
-        paricipant_id = row['participant_id']
-        filename_full_path = os.path.join(path_to_data, paricipant_id, row['filename'])
-        # load image
-        img = np.array(Image.open(filename_full_path))
-        # extract features
-        features = extractor.extract_embeddings(img)
-        features = features.squeeze()
+        if row['found_face'] == False:
+            extracted_embeddings = {f'eng_embedding_{i}': np.NaN for i in range(256)}
+        else:
+            # generate participant id and full path to the frame to read it
+            participant_id = row['participant_id']
+            filename_full_path = os.path.join(path_to_data, participant_id, row['filename'])
+            # load image
+            # img = np.array(Image.open(filename_full_path))
+            img = read_image(filename_full_path)
+            # extract features
+            extracted_embeddings = extractor.extract_embeddings(img)
+            extracted_embeddings = extracted_embeddings.squeeze()
+            extracted_embeddings = {f'eng_embedding_{i}': extracted_embeddings[i] for i in range(256)}
         # add row to the result dataframe
         new_row = {'video_name': row['video_name'], 'participant_id': row['participant_id'],
                    'frame_number': row['frame_number'], 'timestep': row['timestep'],
-                      'filename': row['filename'], 'found_face': row['found_face'],
-                      **{f'embedding_{i}': features[i] for i in range(256)}}
+                   'filename': row['filename'], 'found_face': row['found_face'],
+                   **extracted_embeddings}
         result_file = pd.concat([result_file, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+        # dump result dataframe every 5000 rows
+        if idx % 5000 == 0:
+            result_file.reset_index(inplace=True, drop=True)
+            result_file.to_csv(output_path, index=False, mode='a', header=False)
+            result_file = pd.DataFrame(columns=columns)
     # save result dataframe
     result_file.reset_index(inplace=True, drop=True)
     result_file.to_csv(output_path, index=False)
