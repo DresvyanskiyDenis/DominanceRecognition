@@ -1,7 +1,10 @@
 import glob
 import os
 from typing import List, Callable, Dict, Union, Tuple
-
+import sys
+sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
+sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
+sys.path.append("/work/home/dsu/PhD/scripts/simple-HRNet-master/")
 import cv2
 import numpy as np
 import pandas as pd
