@@ -81,7 +81,7 @@ def extract_poses_all_videos(path_to_data:str, output_path:str, final_fps:int)->
     # generate video paths
     video_filenames = glob.glob(os.path.join(path_to_data, "**", "video", "*L.*")) + glob.glob(os.path.join(path_to_data, "**", "video", "*R.*"))
     # go through all videos
-    for video_filename in video_filenames:
+    for video_filename in tqdm(video_filenames, desc="Processing videos..."):
         video_name = os.path.join(*os.path.basename(video_filename).split('.')[:-1])
         left_participant_id = allocation[video_name]['L']
         right_participant_id = allocation[video_name]['R']
