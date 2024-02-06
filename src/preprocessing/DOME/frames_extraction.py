@@ -88,8 +88,7 @@ def extract_reference_facial_frames_every_participant(path_to_data:str, output_p
 def extract_faces_closeup_video(path_to_video:str, output_path:str, final_fps:int, path_to_face_reference:str,
                                 face_detection_model:str='retinaface',
                                 face_verification_model:str='ArcFace') -> pd.DataFrame:
-    """ Extracts faces from a video and saves them as images. Face_detection_model will work only for the
-    first encountered face in the video as the facial embeddings will be saved.
+    """ Extracts faces from a video and saves them as images.
 
     :param path_to_video: str
         Path to the video file
