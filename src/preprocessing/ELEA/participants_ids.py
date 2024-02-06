@@ -17,7 +17,7 @@ import os.path
 import re
 from typing import Dict, List
 
-part_id = {
+id_references = {
 1:[0, 0, 0, 0], # template: video_number: [video_1_left, video_1_right, video_2_left, video_2_right],
 2:[0, 2, 1, 3], # the values in the list are the participant ids in the following order: 1:K, 2:L, 3:M, 4:N
 3:[2, 1, 0, 3],
@@ -60,9 +60,9 @@ part_id = {
 40:[3, 2, 1, 4],
 }
 
-value_to_id = {1:'K', 2:'L', 3:'M', 4:'N'}
+value_to_id = {1:'K', 2:'L', 3:'M', 4:'N', 0:'noParticipant'}
 
-def prepare_id_splitting(path_to_videos:str, id_references:Dict[int, List[int]], value_to_id:Dict[int, str])->Dict[str, Dict[str, str]]:
+def prepare_id_splitting(path_to_videos:str)->Dict[str, Dict[str, str]]:
     """ Prepares the splitting of the videos into participants and their IDs to extract faces/poses from the frames.
         To do so, the following is done:
         1. paths to the videos are found by the pattern: {path_to_videos}/*.avi
@@ -80,9 +80,6 @@ def prepare_id_splitting(path_to_videos:str, id_references:Dict[int, List[int]],
 
     :param path_to_videos:
         Path to the folder with all the videos.
-    :param id_references: Dict[int, List[int]]
-        Dictionary with the references to the participants IDs. The keys are the group numbers and the values are lists
-        of 4 integers, which are the IDs of the participants in the following order: 1L 1R 2L 2R
     :return: Dict[str, Dict[str, str]]
         Dictionary with the following structure: {video_name: {left: ID, right: ID}}. ID is g{group_number}_{participant_id}
     """
@@ -110,7 +107,7 @@ def prepare_id_splitting(path_to_videos:str, id_references:Dict[int, List[int]],
 
 def main():
     path_to_videos = "/work/home/dsu/Datasets/ELEA/elea/video/"
-    result = prepare_id_splitting(path_to_videos, part_id, value_to_id)
+    result = prepare_id_splitting(path_to_videos)
     print(result)
 
 
