@@ -90,7 +90,7 @@ def extract_affective_embeddings_all_videos(path_to_data:str, path_to_metafile:s
             result_file = pd.DataFrame(columns=columns)
     # save result dataframe
     result_file.reset_index(inplace=True, drop=True)
-    result_file.to_csv(output_path, index=False)
+    result_file.to_csv(output_path, index=False, mode='a', header=False)
 
 
 
