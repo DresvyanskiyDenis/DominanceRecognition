@@ -1,13 +1,14 @@
 import glob
 import os
 import sys
+sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
+sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
 from typing import Dict, Union, Tuple
 
 from feature_extraction.tf_based.deep_face_utils import recognize_faces, extract_face_according_bbox
 from src.preprocessing.ELEA.participants_ids import prepare_id_splitting
 
-sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
-sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
+
 import numpy as np
 import pandas as pd
 import cv2
@@ -145,12 +146,10 @@ def extract_faces_all_videos(path_to_videos:str, output_path:str, final_fps:int,
     metadata_all = pd.DataFrame(columns=['video_name', 'participant_id', 'frame_number', 'timestep', 'filename', 'found_face'])
     # go through all videos
     for video in tqdm(videos, desc='Processing videos...'):
-        if os.path.basename(video) != 'group36_1.avi':
-            continue
         # get participant id
         participants = participants_ids[os.path.basename(video)]
         # if there is noParticipant in the items, replace noParticipant with 'garbage' subfolder name so that
-        # all such nopParticipants from different videos will be saved to the same folder that will be deleted then
+        # all such noParticipants from different videos will be saved to the same folder that will be deleted then
         # moreover, 'garbage' participant_id will be sorted out from the metadata_all
         for key, value in participants.items():
             if 'noParticipant' in value:
@@ -163,14 +162,6 @@ def extract_faces_all_videos(path_to_videos:str, output_path:str, final_fps:int,
     metadata_all = metadata_all[metadata_all['participant_id'] != 'garbage']
     # save metadata
     metadata_all.to_csv(os.path.join(output_path, 'metadata.csv'), index=False)
-
-
-
-
-
-
-
-
 
 
 
