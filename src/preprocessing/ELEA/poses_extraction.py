@@ -1,9 +1,6 @@
 import glob
 import os
 import sys
-
-from feature_extraction.pytorch_based.pose_recognition_utils import get_pose_bbox, crop_frame_to_pose
-
 sys.path.append("/work/home/dsu/PhD/scripts/DominanceRecognition/")
 sys.path.append("/work/home/dsu/PhD/scripts/datatools/")
 sys.path.append("/work/home/dsu/PhD/scripts/simple-HRNet-master/")
@@ -14,6 +11,7 @@ from SimpleHRNet import SimpleHRNet
 from typing import Dict, Union, Tuple
 
 from src.preprocessing.ELEA.participants_ids import prepare_id_splitting
+from feature_extraction.pytorch_based.pose_recognition_utils import get_pose_bbox, crop_frame_to_pose
 
 
 import numpy as np
@@ -158,15 +156,21 @@ def extract_poses_all_videos(path_to_videos:str, output_path:str, final_fps:int)
     # go through all videos
     for video in tqdm(videos, desc="Processing videos..."):
         # get participant IDs
-        participant_ids = participants_ids[os.path.basename(video)]
+        current_participants = participants_ids[os.path.basename(video)]
         # if there is noParticipant in the items, replace noParticipant with 'garbage' subfolder name so that
         # all such noParticipants from different videos will be saved to the same folder that will be deleted then
         # moreover, 'garbage' participant_id will be sorted out from the metadata_all
-        for key, value in participant_ids.items():
+        for key, value in current_participants.items():
             if value == 'noParticipant':
-                participant_ids[key] = 'garbage'
+                current_participants[key] = 'garbage'
         # extract the poses from the video
-        metadata_l, metadata_r = extract_poses_single_video(video, output_path, final_fps, pose_extractor, participant_ids)
+        metadata_l, metadata_r = extract_poses_single_video(video, output_path, current_participants, final_fps, pose_extractor)
+        # append the metadata to the metadata_all
+        metadata_all = pd.concat([metadata_all, metadata_l, metadata_r], ignore_index=True)
+    # filter out the garbage
+    metadata_all = metadata_all[metadata_all['participant_id'] != 'garbage']
+    # save the metadata
+    metadata_all.to_csv(os.path.join(output_path, "metadata_all.csv"), index=False)
 
 
 
@@ -180,7 +184,11 @@ def extract_poses_all_videos(path_to_videos:str, output_path:str, final_fps:int)
 
 
 def main():
-    pass
+    path_to_videos = "/work/home/dsu/Datasets/ELEA/elea/video/"
+    output_path = "/work/home/dsu/Datasets/ELEA/preprocessed/poses/"
+    final_fps = 5
+    extract_poses_all_videos(path_to_videos, output_path, final_fps)
+
 
 if __name__ == "__main__":
     main()
