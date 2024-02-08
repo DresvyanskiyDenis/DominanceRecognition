@@ -80,8 +80,11 @@ def prepare_embeddings_extractor(extractor_type:str):
         return extractor
 
     backbone_model.load_state_dict(torch.load(weights_path))
-    # cut off last two layers responsible for classification and regression
-    backbone_model = torch.nn.Sequential(*list(backbone_model.children())[:-2])
+    # cut off last layers
+    if extractor_type in ['engagement', 'affective']:
+        backbone_model = torch.nn.Sequential(*list(backbone_model.children())[:-2])
+    elif extractor_type == 'kinesics':
+        backbone_model.classifier = torch.nn.Identity()
     # freeze model
     for param in backbone_model.parameters():
         param.requires_grad = False
@@ -159,7 +162,7 @@ def main():
     path_to_data_poses = "/work/home/dsu/Datasets/DOME/extracted_poses/"
     path_to_metafile_faces = "/work/home/dsu/Datasets/DOME/extracted_faces/metadata_all.csv"
     path_to_metafile_poses = "/work/home/dsu/Datasets/DOME/extracted_poses/metadata_all.csv"
-    extractor_types = ['facial', 'engagement', 'affective', 'kinesics']
+    extractor_types = ['kinesics', 'facial', 'engagement', 'affective', ]
     for extractor_type in extractor_types:
         output_path = f"/work/home/dsu/Datasets/DOME/extracted_features/{extractor_type}_embeddings_all.csv"
         path_to_metafile = path_to_metafile_faces if extractor_type in ['facial', 'engagement', 'affective'] else path_to_metafile_poses
