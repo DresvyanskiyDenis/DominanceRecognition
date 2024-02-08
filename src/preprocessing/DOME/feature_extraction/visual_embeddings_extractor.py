@@ -102,7 +102,7 @@ def extract_kinesics_embeddings_all_videos(path_to_data:str, path_to_metafile:st
         Path to the folder with frames (general).
     :param path_to_metafile: str
         Path to the metafile with information about frames. The loaded dataframe will have the following columns:
-        ['video_name', 'frame_number', 'timestep', 'filename', 'found_face']
+        ['video_name', 'frame_number', 'timestep', 'filename', found_column]
     :param output_path: str
         Path for the result dataframe to be saved. Should end with .csv
     :param extractor_type: str
@@ -110,12 +110,13 @@ def extract_kinesics_embeddings_all_videos(path_to_data:str, path_to_metafile:st
     :return: pd.DataFrame
     """
     num_embeddings = 512 if extractor_type in ['facial'] else 256
+    found_column = 'found_face' if extractor_type in ['facial', 'engagement', 'affective'] else 'found_pose'
     if not os.path.exists(output_path.split('.')[0]):
         os.makedirs(output_path.split('.')[0])
     # read metafile
     metafile = pd.read_csv(path_to_metafile)
     # create result_file dataframe
-    columns = ['video_name', 'participant_id', 'frame_number', 'timestep', 'filename', 'found_face'] +\
+    columns = ['video_name', 'participant_id', 'frame_number', 'timestep', 'filename', found_column] +\
               [f'{extractor_type}_embedding_{i}' for i in range(num_embeddings)]
     result_file = pd.DataFrame(columns=columns)
     # create file by writing to csv
@@ -124,7 +125,7 @@ def extract_kinesics_embeddings_all_videos(path_to_data:str, path_to_metafile:st
     extractor = prepare_embeddings_extractor(extractor_type=extractor_type)
     # go over rows in the metafile and extract embeddings for every row (except for non-recognized faces)
     for idx, row in tqdm(metafile.iterrows(), total=len(metafile)):
-        if row['found_face'] == False:
+        if row[found_column] == False:
             extracted_embeddings = {f'{extractor_type}_embedding_{i}': np.NaN for i in range(num_embeddings)}
         else:
             # generate participant id and full path to the frame to read it
@@ -139,7 +140,7 @@ def extract_kinesics_embeddings_all_videos(path_to_data:str, path_to_metafile:st
         # add row to the result dataframe
         new_row = {'video_name': row['video_name'], 'participant_id': row['participant_id'],
                    'frame_number': row['frame_number'], 'timestep': row['timestep'],
-                      'filename': row['filename'], 'found_face': row['found_face'],
+                      'filename': row['filename'], found_column: row[found_column],
                       **extracted_embeddings}
         result_file = pd.concat([result_file, pd.DataFrame(new_row, index=[0])], ignore_index=True)
         # dump result dataframe every 5000 rows
