@@ -104,7 +104,7 @@ def main():
     path_to_dataset = "/work/home/dsu/Datasets/ELEA/preprocessed/aligned_audio/"
     extractor_types = ['wav2vec', 'HuBERT', 'AudioSpectrogramTransformer']
     chunk_sizes = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 60.0]
-    output_path = "/work/home/dsu/Datasets/ELEA/preprocessed/extracted_audio_features/"
+    output_path = "/work/home/dsu/Datasets/ELEA/extracted_audio_features/"
     for extractor_type in extractor_types:
         for chunk_size in chunk_sizes:
             extract_features(path_to_dataset, extractor_type, chunk_size, output_path)
