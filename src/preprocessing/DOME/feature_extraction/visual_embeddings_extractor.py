@@ -154,11 +154,15 @@ def extract_kinesics_embeddings_all_videos(path_to_data:str, path_to_metafile:st
 
 
 def main():
-    path_to_data = "/work/home/dsu/Datasets/DOME/extracted_faces/"
-    path_to_metafile = "/work/home/dsu/Datasets/DOME/extracted_faces/metadata_all.csv"
+    path_to_data_faces = "/work/home/dsu/Datasets/DOME/extracted_faces/"
+    path_to_data_poses = "/work/home/dsu/Datasets/DOME/extracted_poses/"
+    path_to_metafile_faces = "/work/home/dsu/Datasets/DOME/extracted_faces/metadata_all.csv"
+    path_to_metafile_poses = "/work/home/dsu/Datasets/DOME/extracted_poses/metadata_all.csv"
     extractor_types = ['facial', 'engagement', 'affective', 'kinesics']
     for extractor_type in extractor_types:
         output_path = f"/work/home/dsu/Datasets/DOME/extracted_features/{extractor_type}_embeddings_all.csv"
+        path_to_metafile = path_to_metafile_faces if extractor_type in ['facial', 'engagement', 'affective'] else path_to_metafile_poses
+        path_to_data = path_to_data_faces if extractor_type in ['facial', 'engagement', 'affective'] else path_to_data_poses
         extract_kinesics_embeddings_all_videos(path_to_data, path_to_metafile, output_path, extractor_type)
 
 if __name__ == "__main__":
