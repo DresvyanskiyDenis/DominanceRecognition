@@ -37,7 +37,20 @@ def combine_annotations_from_annotators(paths:List[str])->pd.DataFrame:
     return result_dataframe
 
 
+def change_column_names_for_averaged_annotations(df:pd.DataFrame)->pd.DataFrame:
+    """ Changes the column names for PLead_n and PDom_n to the respective participant ids.
+    From the readme file: The order of the columns represent the letters K, L, M, N.
+                                First column is K, second column L, and so on.
 
+
+    :param df: pf.DataFrame
+        Dataframe with columns ['group', 'PLead_1', 'PLead_2', 'PLead_3', 'PLead_4', 'PDom_1', 'PDom_2', 'PDom_3', 'PDom_4']
+    :return: pf.DataFrame
+        Dataframe with columns ['group', 'PLead_K', 'PLead_L', 'PLead_M', 'PLead_N', 'PDom_K', 'PDom_L', 'PDom_M', 'PDom_N']
+    """
+    df.rename(columns={'PLead_1': 'PLead_K', 'PLead_2': 'PLead_L', 'PLead_3': 'PLead_M', 'PLead_4': 'PLead_N',
+                       'PDom_1': 'PDom_K', 'PDom_2': 'PDom_L', 'PDom_3': 'PDom_M', 'PDom_4': 'PDom_N'}, inplace=True)
+    return df
 
 
 
@@ -47,8 +60,8 @@ def main():
     # average annotations from three annotators
     paths = glob.glob("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/*.csv")
     result = combine_annotations_from_annotators(paths)
-    print(result)
-    result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/averaged_annotations.csv", index=False)
+    result = change_column_names_for_averaged_annotations(result)
+    result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/gold_annotations.csv", index=False)
 
 if __name__ == "__main__":
     main()
