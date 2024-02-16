@@ -53,15 +53,51 @@ def change_column_names_for_averaged_annotations(df:pd.DataFrame)->pd.DataFrame:
     return df
 
 
+def transform_to_most_least_dominant(df:pd.DataFrame)->pd.DataFrame:
+    """ Transforms the dataframe with annotations to a dataframe with the most and least dominant participant.
+    To do so, we take the average annotations (already calculated by the function combine_annotations_from_annotators)
+    and calculate the most and least dominant participants depending on the averaged scores.
+    The higher the score, the more dominant the participant is. The lower the score, the less dominant the participant is.
+
+    :param df: pd.DataFrame
+        Dataframe with columns ['group', 'PLead_K', 'PLead_L', 'PLead_M', 'PLead_N', 'PDom_K', 'PDom_L', 'PDom_M', 'PDom_N']
+    :return: pd.DataFrame
+        Dataframe with columns ['group', 'most_dominant', 'least_dominant']
+    """
+    result = pd.DataFrame(columns=['group', 'most_dominant', 'least_dominant'])
+    # go over each row
+    for idx in range(len(df)):
+        group = df.iloc[idx]['group']
+        # get the scores
+        columns = ['PDom_K', 'PDom_L', 'PDom_M', 'PDom_N']
+        scores = df.iloc[idx][columns]
+        # check if there are any NaNs and drop NaNs
+        scores = scores.dropna()
+        # if scores is empty, it means that the whole row is NaN as there are no scores for the corresponding group
+        # then, put NaNs in the result dataframe
+        if scores.empty:
+            new_row = {'group': group, 'most_dominant': np.nan, 'least_dominant': np.nan}
+            result = pd.concat([result, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+            continue
+        # get the most and least dominant and extract corresponding letters (participants ids)
+        most_dominant = columns[np.argmax(scores)].split('_')[-1]
+        least_dominant = columns[np.argmin(scores)].split('_')[-1]
+        # add to result dataframe
+        new_row = {'group': group, 'most_dominant': most_dominant, 'least_dominant': least_dominant}
+        result = pd.concat([result, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+    result.reset_index(inplace=True, drop=True)
+    return result
 
 
 
 def main():
     # average annotations from three annotators
-    paths = glob.glob("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/*.csv")
+    paths = glob.glob("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/Annotator*.csv")
     result = combine_annotations_from_annotators(paths)
     result = change_column_names_for_averaged_annotations(result)
     result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/gold_annotations.csv", index=False)
+    result = transform_to_most_least_dominant(result)
+    result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/gold_annotations_most_least_dominant.csv", index=False)
 
 if __name__ == "__main__":
     main()
