@@ -90,13 +90,26 @@ def transform_to_most_least_dominant(df:pd.DataFrame)->pd.DataFrame:
 
 
 
+def get_most_least_dominant_participants(paths:List[str])->pd.DataFrame:
+    """ Loads, combines and transforms the annotations from multiple annotators into a single dataframe with the most
+    and least dominant participants.
+
+    :param paths: List[str]
+        List of paths to the annotations files
+    :return: pd.DataFrame
+        Dataframe with columns ['group', 'most_dominant', 'least_dominant']
+    """
+    result = combine_annotations_from_annotators(paths)
+    result = change_column_names_for_averaged_annotations(result)
+    result = transform_to_most_least_dominant(result)
+    return result
+
+
+
 def main():
     # average annotations from three annotators
     paths = glob.glob("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/Annotator*.csv")
-    result = combine_annotations_from_annotators(paths)
-    result = change_column_names_for_averaged_annotations(result)
-    result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/gold_annotations.csv", index=False)
-    result = transform_to_most_least_dominant(result)
+    result = get_most_least_dominant_participants(paths)
     result.to_csv("/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/gold_annotations_most_least_dominant.csv", index=False)
 
 if __name__ == "__main__":

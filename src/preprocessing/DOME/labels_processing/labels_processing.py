@@ -25,7 +25,7 @@ def get_annotations_file(path_to_file:str)->pd.DataFrame:
     return df
 
 
-def get_most_and_least_dominance_persons(df:pd.DataFrame)->pd.DataFrame:
+def transform_to_most_and_least_dominance_persons(df:pd.DataFrame)->pd.DataFrame:
     """ Transforms the dataframe got from get_annotations_file to the dataframe with the most and the least dominant
     persons for each session id and corresponding start and end seconds.
     As there are three annotators, the most and the least dominant persons are chosen by the majority vote.
@@ -80,16 +80,26 @@ def get_most_and_least_dominance_persons(df:pd.DataFrame)->pd.DataFrame:
     return result
 
 
+def get_most_least_dominant_participants(path_to_file:str)->pd.DataFrame:
+    """ Loads, combines and transforms the annotations from multiple annotators into a single dataframe with the most
+    and least dominant participants.
+
+    :param path_to_file: str
+        Path to the annotations file
+    :return: pd.DataFrame
+        Dataframe with columns ['session_id', 'start_sec', 'end_sec', 'most_dominant', 'least_dominant']
+    """
+    df = get_annotations_file(path_to_file)
+    result = transform_to_most_and_least_dominance_persons(df)
+    return result
+
 
 
 
 
 def main():
     path_to_file = "/work/home/dsu/Datasets/DOME/Annotations/dome_annotations_M1.csv"
-    df = get_annotations_file(path_to_file)
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(df)
-    m_l_dominant = get_most_and_least_dominance_persons(df)
+    m_l_dominant = get_most_least_dominant_participants(path_to_file)
     print(m_l_dominant)
 
 
