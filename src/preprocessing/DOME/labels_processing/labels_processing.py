@@ -80,7 +80,7 @@ def transform_to_most_and_least_dominance_persons(df:pd.DataFrame)->pd.DataFrame
     return result
 
 
-def get_most_least_dominant_participants(path_to_file:str)->pd.DataFrame:
+def get_most_least_dominant_participants_DOME(path_to_file:str)->pd.DataFrame:
     """ Loads, combines and transforms the annotations from multiple annotators into a single dataframe with the most
     and least dominant participants.
 
@@ -99,7 +99,7 @@ def get_most_least_dominant_participants(path_to_file:str)->pd.DataFrame:
 
 def main():
     path_to_file = "/work/home/dsu/Datasets/DOME/Annotations/dome_annotations_M1.csv"
-    m_l_dominant = get_most_least_dominant_participants(path_to_file)
+    m_l_dominant = get_most_least_dominant_participants_DOME(path_to_file)
     print(m_l_dominant)
 
 
