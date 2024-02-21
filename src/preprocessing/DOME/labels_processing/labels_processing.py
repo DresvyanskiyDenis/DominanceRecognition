@@ -91,6 +91,9 @@ def get_most_least_dominant_participants_DOME(path_to_file:str)->pd.DataFrame:
     """
     df = get_annotations_file(path_to_file)
     result = transform_to_most_and_least_dominance_persons(df)
+    # clear the result dataframe "session_id" column from spaces and other symbols
+    result['session_id'] = result['session_id'].str.replace(' ', '')
+    result['session_id'] = result['session_id'].str.replace('\t', '')
     return result
 
 
