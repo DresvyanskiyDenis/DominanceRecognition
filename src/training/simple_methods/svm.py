@@ -148,8 +148,8 @@ def apply_PCA_to_features(participants_with_features: dict_data_type) -> dict_da
     # apply PCA
     result = {}
     for participant_id, data in participants_with_features.items():
-        result[participant_id] = {'audio_features': audio_pca.transform(data['audio_features']),
-                                  'visual_features': visual_pca.transform(data['visual_features']),
+        result[participant_id] = {'audio_features': audio_pca.transform(data['audio_features'].reshape((1, -1))).squeeze(),
+                                  'visual_features': visual_pca.transform(data['visual_features'].reshape((1, -1))).squeeze(),
                                   'label_least_dominant': data['label_least_dominant'],
                                   'label_most_dominant': data['label_most_dominant']}
     return result
