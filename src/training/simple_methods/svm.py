@@ -137,8 +137,8 @@ def apply_PCA_to_features(participants_with_features: dict_data_type) -> dict_da
         'least_dominant': float, 'most_dominant': float,
         }, where np.ndarray contains PCA-transformed statistics for the corresponding features.
     """
-    audio_combined = np.concatenate([data['audio_features'] for data in participants_with_features.values()], axis=0)
-    visual_combined = np.concatenate([data['visual_features'] for data in participants_with_features.values()], axis=0)
+    audio_combined = np.concatenate([data['audio_features'].reshape((1, -1)) for data in participants_with_features.values()], axis=0)
+    visual_combined = np.concatenate([data['visual_features'].reshape((1, -1)) for data in participants_with_features.values()], axis=0)
     # create PCA
     audio_pca = PCA(n_components=0.95)
     visual_pca = PCA(n_components=0.95)
@@ -203,9 +203,9 @@ def leave_one_instace_out_svm(elea_labels: dict_data_type, dome_labels: dict_dat
     # elea always has 'g' in ids. If all is selected, we need to calculate metrics for all participants
     particles_in_ids = {'dome': 'IS', 'elea': 'g', 'all': ''}
     least_dom = np.array([predictions[value]['least_dominant'] for value in idx_to_ids.values() if
-                          particles_in_ids[dev_dataset] in value])
+                          particles_in_ids[dev_dataset] in value]).squeeze()
     most_dom = np.array([predictions[value]['most_dominant'] for value in idx_to_ids.values() if
-                         particles_in_ids[dev_dataset] in value])
+                         particles_in_ids[dev_dataset] in value]).squeeze()
     least_dom_true = np.array([combined_dict[value]['label_least_dominant'] for value in idx_to_ids.values() if
                                particles_in_ids[dev_dataset] in value])
     most_dom_true = np.array([combined_dict[value]['label_most_dominant'] for value in idx_to_ids.values() if
@@ -276,8 +276,12 @@ def main(normalization: bool, pca: bool, dataset: str, output_path: str):
         elea_data = normalize_features(elea_data)
     # apply PCA if needed
     if pca:
-        dome_data = apply_PCA_to_features(dome_data)
-        elea_data = apply_PCA_to_features(elea_data)
+        # concatenate dome and elea data
+        mixed_data = {**dome_data, **elea_data}
+        mixed_data = apply_PCA_to_features(mixed_data)
+        # split the data back to dome and elea
+        dome_data = {key: value for key, value in mixed_data.items() if 'IS' in key}
+        elea_data = {key: value for key, value in mixed_data.items() if 'g' in key}
     # grid search for the best parameters
     for C in training_params['svc_metaparams']['C']:
         for kernel in training_params['svc_metaparams']['kernel']:
