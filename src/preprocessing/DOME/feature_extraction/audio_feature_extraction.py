@@ -103,7 +103,7 @@ def extract_features(path_to_dataset:str, extractor_type:str, chunk_size:float, 
 
 def main():
     path_to_dataset = "/work/home/dsu/Datasets/DOME/amicorpus/"
-    extractor_types = ['wav2vec', 'HuBERT', 'AudioSpectrogramTransformer']
+    extractor_types = ['wav2vec', 'AudioSpectrogramTransformer']
     chunk_sizes = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 60.0]
     output_path = "/work/home/dsu/Datasets/DOME/extracted_audio_features/"
     for extractor_type in extractor_types:
