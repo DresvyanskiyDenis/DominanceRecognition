@@ -1,6 +1,10 @@
 import glob
+import itertools
 import os
 import sys
+
+from tqdm import tqdm
+
 # dynamically append the path to the project to the system path
 path_to_project = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))+os.sep
 sys.path.append(path_to_project)
@@ -18,6 +22,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 
 from src.training.simple_methods.data_utils import load_and_prepare_DOME_and_ELEA_features_and_labels
+from src.training.simple_methods.ml_algorithms import ml_alrogithms, hyperparams
 
 
 @click.group()
@@ -154,29 +159,19 @@ def apply_PCA_to_features(participants_with_features: dict_data_type) -> dict_da
                                   'label_most_dominant': data['label_most_dominant']}
     return result
 
-
-def train_svm(metaparams: dict, features: np.ndarray, labels: List[np.ndarray], dev_features: np.ndarray) -> List[
-    np.ndarray]:
-    """ Trains the SVM model for every label types in the provided list of labels.
-    In this case, we send least_dominant and most_dominant labels separately in the list of labels.
-    """
-    # create the model
-    models = [SVC(**metaparams, class_weight='balanced') for _ in range(len(labels))]
-    # fit the mode
+def train_classifier(ml_model, hyperparams:dict, train_features: np.ndarray, labels: List[np.ndarray], dev_features: np.ndarray)->List[np.ndarray]:
+    # create ML model
+    models = [ml_model(**hyperparams) for _ in range(len(labels))]
+    # train the model
     for i, model in enumerate(models):
-        model.fit(features, labels[i])
+        model.fit(train_features, labels[i])
     # predict the labels
-    predictions = [model.predict(dev_features) for model in models]
+    predictions = [model.predict_proba(dev_features) for model in models]
     return predictions
 
 
-def leave_one_instace_out_svm(elea_labels: dict_data_type, dome_labels: dict_data_type, metaparams_svc: dict,
-                              dev_dataset: str):
+def leave_one_instance_out_predictions(ml_model, hyperparameters, elea_labels: dict_data_type, dome_labels: dict_data_type):
     # features are already normalized and PCA-transformed
-    metrics = {
-        'val_accuracy': accuracy_score,
-        'val_recall': partial(recall_score, average='macro'),
-    }
     # create dict idx_to_ids
     combined_dict = {**elea_labels, **dome_labels}
     idx_to_ids = {idx: participant_id for idx, participant_id in enumerate(combined_dict.keys())}
@@ -191,50 +186,101 @@ def leave_one_instace_out_svm(elea_labels: dict_data_type, dome_labels: dict_dat
     combined_labels_most = np.array([combined_dict[value]['label_most_dominant'] for value in idx_to_ids.values()])
     # leave-one-out cross-validation
     for idx in idx_to_ids.keys():
-        least_dom, most_dom = train_svm(metaparams_svc,
-                                        features=combined_features[np.arange(len(idx_to_ids)) != idx],
+        least_dom, most_dom = train_classifier(ml_model, hyperparameters,
+                                        train_features=combined_features[np.arange(len(idx_to_ids)) != idx],
                                         labels=[combined_labels_least[np.arange(len(idx_to_ids)) != idx],
                                                 combined_labels_most[np.arange(len(idx_to_ids)) != idx]],
                                         dev_features=combined_features[idx].reshape((1, -1)))
-        predictions[idx_to_ids[idx]]['least_dominant'] = least_dom
-        predictions[idx_to_ids[idx]]['most_dominant'] = most_dom
-    # calculate metrics
-    # if dev dataset is dome, we need to calculate metrics for dome only. THeir participants always have 'IS' in ids
-    # elea always has 'g' in ids. If all is selected, we need to calculate metrics for all participants
-    particles_in_ids = {'dome': 'IS', 'elea': 'g', 'all': ''}
-    least_dom = np.array([predictions[value]['least_dominant'] for value in idx_to_ids.values() if
-                          particles_in_ids[dev_dataset] in value]).squeeze()
-    most_dom = np.array([predictions[value]['most_dominant'] for value in idx_to_ids.values() if
-                         particles_in_ids[dev_dataset] in value]).squeeze()
-    least_dom_true = np.array([combined_dict[value]['label_least_dominant'] for value in idx_to_ids.values() if
-                               particles_in_ids[dev_dataset] in value])
-    most_dom_true = np.array([combined_dict[value]['label_most_dominant'] for value in idx_to_ids.values() if
-                              particles_in_ids[dev_dataset] in value])
+        predictions[idx_to_ids[idx]]['least_dominant'] = least_dom # we get probability of being least dominant
+        predictions[idx_to_ids[idx]]['least_dominant_label'] = combined_labels_least[idx] # inject the label into predictions
+        predictions[idx_to_ids[idx]]['most_dominant'] = most_dom # we get probability of being most dominant
+        predictions[idx_to_ids[idx]]['most_dominant_label'] = combined_labels_most[idx] # inject the label into predictions
 
-    # calculate metrics for least dominant, including the accuracy for detecting the least dominant (when prediction and true label both equal 1)
-    metrics_values_least = {metric_name: metric(least_dom_true, least_dom) for metric_name, metric in metrics.items()}
-    metrics_values_least.update(
-        {'least_dom_detection': np.sum((least_dom_true == 1) & (least_dom == 1)) / np.sum(least_dom_true == 1)})
+    return predictions
 
-    # calculate metrics for most dominant, including the accuracy for detecting the most dominant (when prediction and true label both equal 1)
-    metrics_values_most = {metric_name: metric(most_dom_true, most_dom) for metric_name, metric in metrics.items()}
-    metrics_values_most.update(
-        {'most_dom_detection': np.sum((most_dom_true == 1) & (most_dom == 1)) / np.sum(most_dom_true == 1)})
-    return metrics_values_least, metrics_values_most
+def calculate_least_and_most_dominant_accuracies_from_probabilities(predictions:dict):
+    # divide predictions and labels into DOME and ELEA
+    dome_predictions = {key: value for key, value in predictions.items() if 'IS' in key}
+    elea_predictions = {key: value for key, value in predictions.items() if 'g' in key}
+    # DOME
+    # get unique names of sessions
+    dome_session_names = set(['_'.join([key.split('_')[0], key.split('_')[-2], key.split('_')[-1]]) for key in dome_predictions.keys()])
+    # divide participants on groups according to the session
+    groups = []
+    for session in dome_session_names:
+        session_name = session.split('_')[0]
+        session_part = session.split('_')[-2] + '_' + session.split('_')[-1]
+        group = [key for key in dome_predictions.keys() if session_name in key and session_part in key]
+        group = [dome_predictions[key] for key in group]
+        groups.append(group)
+    # calculate accuracy for every group
+    right_or_not_least = []
+    right_or_not_most = []
+    for group in groups:
+        label_least = np.argmax([item['least_dominant_label'] for item in group])
+        label_most = np.argmax([item['most_dominant_label'] for item in group])
+        # get the most probable label
+        least_dominant = np.argmax([item['least_dominant'].squeeze()[1] for item in group])
+        most_dominant = np.argmax([item['most_dominant'].squeeze()[1] for item in group])
+        # check if the most probable label is the same as the true label
+        right_or_not_least.append(label_least == least_dominant)
+        right_or_not_most.append(label_most == most_dominant)
+    # calculate accuracy
+    accuracy_least_dome = np.mean(right_or_not_least)
+    accuracy_most_dome = np.mean(right_or_not_most)
+    # ELEA
+    # get unique names of sessions
+    elea_session_names = set([key.split('_')[0] for key in elea_predictions.keys()])
+    # divide participants on groups according to the session
+    groups = []
+    for session in elea_session_names:
+        group = [key for key in elea_predictions.keys() if session in key]
+        group = [elea_predictions[key] for key in group]
+        groups.append(group)
+    # calculate accuracy for every group
+    right_or_not_least = []
+    right_or_not_most = []
+    for group in groups:
+        label_least = np.argmax([item['least_dominant_label'] for item in group])
+        label_most = np.argmax([item['most_dominant_label'] for item in group])
+        # get the most probable label
+        least_dominant = np.argmax([item['least_dominant'].squeeze()[1] for item in group])
+        most_dominant = np.argmax([item['most_dominant'].squeeze()[1] for item in group])
+        # check if the most probable label is the same as the true label
+        right_or_not_least.append(label_least == least_dominant)
+        right_or_not_most.append(label_most == most_dominant)
+    # calculate accuracy
+    accuracy_least_elea = np.mean(right_or_not_least)
+    accuracy_most_elea = np.mean(right_or_not_most)
+
+    return {
+        'dome_least_acc': accuracy_least_dome,
+        'dome_most_acc': accuracy_most_dome,
+        'elea_least_acc': accuracy_least_elea,
+        'elea_most_acc': accuracy_most_elea
+    }
+
+
+
+
+
+
+
+
+
+
+
 
 
 @cli.command("main")
 @click.option('--normalization', default=None, help="To apply the normalization to data or not", type=bool)
 @click.option('--pca', default=None, help="To apply PCA to data or not", type=bool)
-@click.option('--dataset', default=None,
-              help="Which dataset will be used for leave-one-instace-out cross-validation. Can be: dome, elea, all",
-              type=str)
+@click.option('--audio_features', default=None, help="type_of_audio_features", type=str)
 @click.option('--output_path', default=None, help="Output folder for logging", type=str)
-def main(normalization: bool, pca: bool, dataset: str, output_path: str):
+def main(normalization: bool, pca: bool, audio_features:str, output_path: str):
     training_params: dict = {
         'normalization': normalization,
         'pca': pca,
-        'dataset': dataset,
         'output_path': output_path,
         'svc_metaparams': {
             'C': [0.01, 0.1, 1, 10, 100],
@@ -243,11 +289,11 @@ def main(normalization: bool, pca: bool, dataset: str, output_path: str):
             'gamma': ['scale', 'auto'],
         },
         'elea_visual_paths': glob.glob("/work/home/dsu/Datasets/ELEA/extracted_features/*.csv"),
-        'elea_audio_paths': glob.glob("/work/home/dsu/Datasets/ELEA/extracted_audio_features/*/*AudioSpectrogram*4.0*"),
+        'elea_audio_paths': glob.glob(f"/work/home/dsu/Datasets/ELEA/extracted_audio_features/*/*{audio_features}*"),
         'elea_labels_paths': glob.glob(
             "/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/Annotator*.csv"),
         'dome_visual_paths': glob.glob("/work/home/dsu/Datasets/DOME/extracted_features/*.csv"),
-        'dome_audio_paths': glob.glob("/work/home/dsu/Datasets/DOME/extracted_audio_features/*/*AudioSpectrogram*4.0*"),
+        'dome_audio_paths': glob.glob(f"/work/home/dsu/Datasets/DOME/extracted_audio_features/*/*{audio_features}*"),
         'dome_labels_paths': "/work/home/dsu/Datasets/DOME/Annotations/dome_annotations_M1.csv",
     }
 
@@ -256,10 +302,8 @@ def main(normalization: bool, pca: bool, dataset: str, output_path: str):
         os.makedirs(training_params['output_path'])
     # create logger
     logger = pd.DataFrame(
-        columns=['dataset', 'normalization', 'pca', 'metaparams', 'least_dominant_accuracy', 'least_dominant_recall',
-                 'least_dominant_detection_rate',
-                 'most_dominant_accuracy', 'most_dominant_recall', 'most_dominant_detection_rate'])
-    logger.to_csv(os.path.join(output_path, f'svc_results_{dataset}_norm_{normalization}_pca_{pca}.csv'))
+        columns=['ml_algorithm', 'hyperparameters', 'dome_least_acc', 'dome_most_acc', 'elea_least_acc', 'elea_most_acc'])
+    logger.to_csv(os.path.join(output_path, f'ml_algorithms_results_{audio_features}_norm_{normalization}_pca_{pca}.csv'))
     # load the labels
     dome_data, elea_data = load_and_prepare_DOME_and_ELEA_features_and_labels(training_params['elea_visual_paths'],
                                                                               training_params['elea_audio_paths'],
@@ -283,29 +327,29 @@ def main(normalization: bool, pca: bool, dataset: str, output_path: str):
         dome_data = {key: value for key, value in mixed_data.items() if 'IS' in key}
         elea_data = {key: value for key, value in mixed_data.items() if 'g' in key}
     # grid search for the best parameters
-    for C in training_params['svc_metaparams']['C']:
-        for kernel in training_params['svc_metaparams']['kernel']:
-            for gamma in training_params['svc_metaparams']['gamma']:
-                for degree in training_params['svc_metaparams']['degree']:
-                    metaparams_svc = {'C': C, 'kernel': kernel, 'degree': degree, 'gamma': gamma}
-                    metrics_values_least, metrics_values_most = leave_one_instace_out_svm(elea_data, dome_data,
-                                                                                          metaparams_svc, dataset)
-                    print(f'Metaparameters: {metaparams_svc}')
-                    print(f'Least dominant: {metrics_values_least}')
-                    print(f'Most dominant: {metrics_values_most}')
-                    # write results to the logger
-                    row = pd.DataFrame({'dataset': dataset, 'normalization': normalization, 'pca': pca,
-                                        'metaparams': str(metaparams_svc),
-                                        'least_dominant_accuracy': metrics_values_least['val_accuracy'],
-                                        'least_dominant_recall': metrics_values_least['val_recall'],
-                                        'least_dominant_detection_rate': metrics_values_least['least_dom_detection'],
-                                        'most_dominant_accuracy': metrics_values_most['val_accuracy'],
-                                        'most_dominant_recall': metrics_values_most['val_recall'],
-                                        'most_dominant_detection_rate': metrics_values_most['most_dom_detection']},
+    for ml_algorithm in ml_alrogithms.keys():
+        all_hyperparameters = hyperparams[ml_algorithm]
+        keys, values = zip(*all_hyperparameters.items())
+        combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        # test every combination
+        for combination in tqdm(combinations, desc=f"Testing {ml_algorithm}"):
+            ml_alg = ml_alrogithms[ml_algorithm]
+            current_predictions = leave_one_instance_out_predictions(ml_alg, combination,
+                                               elea_labels=elea_data, dome_labels=dome_data)
+            accuracies = calculate_least_and_most_dominant_accuracies_from_probabilities(current_predictions)
+            print(f"Algorithm: {ml_algorithm}, combination: {combination}")
+            print(accuracies)
+            print('----------------------------------------------------------------------')
+            row = pd.DataFrame({'normalization': normalization, 'pca': pca,
+                                        'ml_algorithm': ml_algorithm, 'hyperparameters': str(combination),
+                                        'dome_least_acc': accuracies['dome_least_acc'],
+                                        'dome_most_acc': accuracies['dome_most_acc'],
+                                        'elea_least_acc': accuracies['elea_least_acc'],
+                                        'elea_most_acc': accuracies['elea_most_acc']},
                                        index=[0])
-                    logger = pd.concat([logger, row], ignore_index=True)
-    # save the results
-    logger.to_csv(os.path.join(output_path, f'svc_results_{dataset}_norm_{normalization}_pca_{pca}.csv'))
+            logger = pd.concat([logger, row], ignore_index=True)
+            logger.to_csv(os.path.join(output_path, f'ml_algorithms_results_{audio_features}_norm_{normalization}_pca_{pca}.csv'))
+
 
 
 if __name__ == "__main__":
