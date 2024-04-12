@@ -12,7 +12,7 @@ ml_alrogithms = {
     'RF': partial(RandomForestClassifier, n_jobs=-1),
     'ELM': ELMClassifier,
     'knn': partial(KNeighborsClassifier, n_jobs=-1),
-    'MLP': partial(MLPClassifier, max_iter=300, learning_rate_init=0.005),
+    #'MLP': partial(MLPClassifier, max_iter=500, learning_rate_init=0.005),
     'SVC': partial(SVC, probability=True),
 }
 
