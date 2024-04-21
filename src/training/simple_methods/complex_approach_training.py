@@ -33,7 +33,8 @@ def cli():
 dict_data_type = Dict[str, Dict[str, Union[np.ndarray, pd.DataFrame, float, int]]]
 
 
-def calculate_statistics_for_every_participant(participants_with_features: dict_data_type) \
+def calculate_statistics_for_every_participant(participants_with_features: dict_data_type,
+                                               statistics_to_calculate:List[str]) \
         -> dict_data_type:
     """ Calculates various statistics (defined inside function) for every participant in the provided dictionary using
     the provided dataframes (audio and visual features).
@@ -44,6 +45,9 @@ def calculate_statistics_for_every_participant(participants_with_features: dict_
         {'participant_id': {'audio_features': pd.DataFrame, 'visual_features': pd.DataFrame,
         'least_dominant': float}, 'most_dominant': float}
         }
+    :param statistics_to_calculate: List[str]
+        List of statistics to calculate. It can contain the following values: 'mean', 'std', 'kurtosis', 'skew', 'min',
+        'max'
     :return: Dict[str, Dict[str, Union[np.ndarray, float, int]]]
         Dictionary with participant ids as keys and dictionaries with statistics as values.
         It has the following format:
@@ -51,7 +55,15 @@ def calculate_statistics_for_every_participant(participants_with_features: dict_
         'least_dominant': float, 'most_dominant': float,
         }, where np.ndarray contains statistics for the corresponding features.
     """
-    statistics_to_calculate = [np.mean, np.std, kurtosis, skew]
+    statistics_dict = {
+        'mean': np.mean,
+        'std': np.std,
+        'kurtosis': kurtosis,
+        'skew': skew,
+        'min': np.min,
+        'max': np.max
+    }
+    statistics_to_calculate = [statistics_dict[stat] for stat in statistics_to_calculate]
     result = {}
     for participant_id, data in participants_with_features.items():
         audio_df = data['audio_features']
@@ -158,6 +170,68 @@ def apply_PCA_to_features(participants_with_features: dict_data_type) -> dict_da
                                   'label_least_dominant': data['label_least_dominant'],
                                   'label_most_dominant': data['label_most_dominant']}
     return result
+
+def transform_features_to_interpersonal(participants_with_features: dict_data_type) -> dict_data_type:
+    """ Transforms the features of every participant to the interpersonal ones. To do so, the following actions are
+    taken:
+        1. Select group/session and all participants in this group.
+        2. For every participant:
+            2.1. Calculate the mean of the features for the group except for the participant (for every embedding column).
+            2.2. Substract the mean from the features of the participant.
+        3. Repeat for every group/session.
+        Thus, the features of every participant will be transformed to the interpersonal ones. The idea is that
+        the features will represent the difference between the participant and the mean of the group.
+
+    :param participants_with_features: Dict[str, Dict[str, Union[np.ndarray, pd.DataFrame, float, int]]]
+        Dictionary with participant ids as keys and dictionaries with statistics as values.
+        It has the following format:
+        {'participant_id': {'audio_features': np.ndarray, 'visual_features': np.ndarray,
+        'least_dominant': float, 'most_dominant': float,
+        }, where np.ndarray contains statistics for the corresponding features.
+    :return: Dict[str, Dict[str, Union[np.ndarray, pd.DataFrame, float, int]]]
+        Dictionary with participant ids as keys and dictionaries with statistics as values.
+        It has the following format:
+        {'participant_id': {'audio_features': np.ndarray, 'visual_features': np.ndarray,
+        'least_dominant': float, 'most_dominant': float,
+        }, where np.ndarray contains interpersonal statistics for the corresponding features.
+    """
+    result = {}
+    if 'IS' in list(participants_with_features.keys())[0]:
+        # then we process DOME part of the dataset. It has the following structure: groupSession_participantID_Part
+        groups= set([key.split('_')[0] + '_' + key.split('_')[-2] + '_' + key.split('_')[-1] # groupSession_Part
+                           for key in participants_with_features.keys()])
+    elif 'g' in list(participants_with_features.keys())[0]:
+        # then we process ELEA part of the dataset. It has the following structure: group_ParticipantID
+        groups = set([key.split('_')[0] for key in participants_with_features.keys()])
+    else:
+        raise ValueError("Unknown dataset")
+    for group in groups:
+        if "IS" in group:
+            session_name = group.split('_')[0]
+            session_part = group.split('_')[-2] + '_' + group.split('_')[-1]
+            group_participants = [key for key in participants_with_features.keys() if session_name in key and session_part in key]
+        elif "g" in group:
+            session_name = group.split('_')[0]
+            group_participants = [key for key in participants_with_features.keys() if session_name in key]
+        # transform features within the group
+        for participant_id in group_participants:
+            audio_features = participants_with_features[participant_id]['audio_features']
+            visual_features = participants_with_features[participant_id]['visual_features']
+            # calculate mean for other participants in the group except for the current participant
+            audio_mean = np.mean([participants_with_features[key]['audio_features'] for key in group_participants if key != participant_id], axis=0)
+            visual_mean = np.mean([participants_with_features[key]['visual_features'] for key in group_participants if key != participant_id], axis=0)
+            # substract the mean
+            audio_features = audio_features - audio_mean
+            visual_features = visual_features - visual_mean
+            result[participant_id] = {'audio_features': audio_features, 'visual_features': visual_features,
+                                        'label_least_dominant': participants_with_features[participant_id]['label_least_dominant'],
+                                        'label_most_dominant': participants_with_features[participant_id]['label_most_dominant']}
+    return result
+
+
+
+
+
 
 def train_classifier(ml_model, hyperparams:dict, train_features: np.ndarray, labels: List[np.ndarray], dev_features: np.ndarray)->List[np.ndarray]:
     # create ML model
@@ -273,12 +347,14 @@ def calculate_least_and_most_dominant_accuracies_from_probabilities(predictions:
 
 
 @cli.command("main")
+@click.option('--statistics', default=None, help="Which statistics to calculate. Shoud be written as string with commas", type=str)
 @click.option('--normalization', default=None, help="To apply the normalization to data or not", type=bool)
 @click.option('--pca', default=None, help="To apply PCA to data or not", type=bool)
 @click.option('--audio_features', default=None, help="type_of_audio_features", type=str)
 @click.option('--output_path', default=None, help="Output folder for logging", type=str)
-def main(normalization: bool, pca: bool, audio_features:str, output_path: str):
+def main(statistics, normalization: bool, pca: bool, audio_features:str, output_path: str):
     training_params: dict = {
+        'statistics': statistics.split(','),
         'normalization': normalization,
         'pca': pca,
         'output_path': output_path,
@@ -312,12 +388,8 @@ def main(normalization: bool, pca: bool, audio_features:str, output_path: str):
                                                                               training_params['dome_audio_paths'],
                                                                               training_params['dome_labels_paths'])
     # calculate statistics for every participant
-    dome_data = calculate_statistics_for_every_participant(dome_data)
-    elea_data = calculate_statistics_for_every_participant(elea_data)
-    # normalize features if needed
-    if normalization:
-        dome_data = normalize_features(dome_data)
-        elea_data = normalize_features(elea_data)
+    dome_data = calculate_statistics_for_every_participant(dome_data, training_params['statistics'])
+    elea_data = calculate_statistics_for_every_participant(elea_data, training_params['statistics'])
     # apply PCA if needed
     if pca:
         # concatenate dome and elea data
@@ -326,6 +398,13 @@ def main(normalization: bool, pca: bool, audio_features:str, output_path: str):
         # split the data back to dome and elea
         dome_data = {key: value for key, value in mixed_data.items() if 'IS' in key}
         elea_data = {key: value for key, value in mixed_data.items() if 'g' in key}
+    # normalize features if needed
+    if normalization:
+        dome_data = normalize_features(dome_data)
+        elea_data = normalize_features(elea_data)
+    # transform features to interpersonal
+    dome_data = transform_features_to_interpersonal(dome_data)
+    elea_data = transform_features_to_interpersonal(elea_data)
     # grid search for the best parameters
     for ml_algorithm in ml_alrogithms.keys():
         all_hyperparameters = hyperparams[ml_algorithm]
@@ -340,7 +419,8 @@ def main(normalization: bool, pca: bool, audio_features:str, output_path: str):
             print(f"Algorithm: {ml_algorithm}, combination: {combination}")
             print(accuracies)
             print('----------------------------------------------------------------------')
-            row = pd.DataFrame({'normalization': normalization, 'pca': pca,
+            row = pd.DataFrame({ 'statistics': statistics,
+                                        'normalization': normalization, 'pca': pca,
                                         'ml_algorithm': ml_algorithm, 'hyperparameters': str(combination),
                                         'dome_least_acc': accuracies['dome_least_acc'],
                                         'dome_most_acc': accuracies['dome_most_acc'],
