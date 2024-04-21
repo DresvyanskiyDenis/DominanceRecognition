@@ -363,7 +363,7 @@ def main(statistics, normalization: bool, pca: bool, audio_features:str, output_
                                 'elea_most_acc': accuracies['elea_most_acc']},
                                index=[0])
             logger = pd.concat([logger, row], ignore_index=True)
-            logger.to_csv(os.path.join(output_path, f'ml_algorithms_results_{audio_features}_norm_{normalization}_pca_{pca}.csv'))
+            logger.to_csv(os.path.join(output_path, f'stat_{statistics}_{audio_features}_norm_{normalization}_pca_{pca}.csv'))
 
 
 
