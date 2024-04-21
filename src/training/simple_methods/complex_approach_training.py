@@ -364,13 +364,13 @@ def main(statistics, normalization: bool, pca: bool, audio_features:str, output_
             'degree': [2, 3, 4],
             'gamma': ['scale', 'auto'],
         },
-        'elea_visual_paths': glob.glob("/work/home/dsu/Datasets/ELEA/extracted_features/*.csv"),
-        'elea_audio_paths': glob.glob(f"/work/home/dsu/Datasets/ELEA/extracted_audio_features/*/*{audio_features}*"),
+        'elea_visual_paths': glob.glob("/nfs/home/ddresvya/Data/ELEA/extracted_features/*.csv"),
+        'elea_audio_paths': glob.glob(f"/nfs/home/ddresvya/Data/ELEA/extracted_audio_features/*/*{audio_features}*"),
         'elea_labels_paths': glob.glob(
-            "/work/home/dsu/Datasets/ELEA/preprocessed_labels/ELEA_external_annotations/Annotator*.csv"),
-        'dome_visual_paths': glob.glob("/work/home/dsu/Datasets/DOME/extracted_features/*.csv"),
-        'dome_audio_paths': glob.glob(f"/work/home/dsu/Datasets/DOME/extracted_audio_features/*/*{audio_features}*"),
-        'dome_labels_paths': "/work/home/dsu/Datasets/DOME/Annotations/dome_annotations_M1.csv",
+            "/nfs/home/ddresvya/Data/ELEA/preprocessed_labels/ELEA_external_annotations/Annotator*.csv"),
+        'dome_visual_paths': glob.glob("/nfs/home/ddresvya/Data/DOME/extracted_features/*.csv"),
+        'dome_audio_paths': glob.glob(f"/nfs/home/ddresvya/Data/DOME/extracted_audio_features/*/*{audio_features}*"),
+        'dome_labels_paths': "/nfs/home/ddresvya/Data/DOME/Annotations/dome_annotations_M1.csv",
     }
 
     # create output folder if needed
