@@ -27,7 +27,7 @@ hyperparams = {
         },
     'SVC': {
         'C': [ 0.1, 1, 10, 100],
-        'gamma': 'scale',
+        'gamma': ['scale'],
         'kernel': ['rbf', 'linear', 'sigmoid'],
         'class_weight': ['balanced', None],
     },
